@@ -1,0 +1,239 @@
+use auto;
+
+DROP TRIGGER IF EXISTS `BRIGADA_BEFORE_INSERT`;
+
+DELIMITER //
+CREATE TRIGGER `BRIGADA_BEFORE_INSERT`
+BEFORE INSERT ON `brigada`
+FOR EACH ROW
+BEGIN
+DECLARE staff_count INT;
+	DECLARE isAlredy INT;
+    
+	SELECT COUNT(*) INTO staff_count
+	FROM staff
+	INNER JOIN brigada ON staff.brigada = brigada.id
+	WHERE (staff.id = NEW.brigadir OR staff.id = NEW.master) AND brigada.id = NEW.id;
+
+	IF staff_count = 0 THEN
+	SIGNAL SQLSTATE '45000'
+	SET MESSAGE_TEXT = 'Некоректний командир, робітник не належить бригаді!';
+	END IF;
+    
+	SELECT COUNT(*) INTO isAlredy
+	FROM staff
+	INNER JOIN brigada ON staff.brigada = brigada.id
+    
+	WHERE (staff.id = NEW.brigadir OR staff.id = NEW.master) AND (
+	brigada.brigadir = NEW.brigadir OR
+	brigada.master = NEW.brigadir OR
+	brigada.brigadir = NEW.master OR
+	brigada.master = NEW.master
+	);
+	IF isAlready > 0 THEN
+	SIGNAL SQLSTATE '45000'
+	SET MESSAGE_TEXT = 'Некоректний командир, робітник є командиром
+	іншої бригади!';
+	END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `BRIGADA_BEFORE_UPDATE`;
+
+DELIMITER //
+CREATE TRIGGER `BRIGADA_BEFORE_UPDATE`
+BEFORE UPDATE ON `brigada`
+FOR EACH ROW
+BEGIN
+DECLARE staff_count INT;
+	DECLARE isAlredy INT;
+    
+	SELECT COUNT(*) INTO staff_count
+	FROM staff
+	INNER JOIN brigada ON staff.brigada = brigada.id
+	WHERE (staff.id = NEW.brigadir OR staff.id = NEW.master) AND brigada.id = NEW.id;
+
+	IF staff_count = 0 THEN
+	SIGNAL SQLSTATE '45000'
+	SET MESSAGE_TEXT = 'Некоректний командир, робітник не належить бригаді!';
+	END IF;
+    
+	SELECT COUNT(*) INTO isAlredy
+	FROM staff
+	INNER JOIN brigada ON staff.brigada = brigada.id
+    
+	WHERE (staff.id = NEW.brigadir OR staff.id = NEW.master) AND (
+	brigada.brigadir = NEW.brigadir OR
+	brigada.master = NEW.brigadir OR
+	brigada.brigadir = NEW.master OR
+	brigada.master = NEW.master
+	);
+	IF isAlready > 0 THEN
+	SIGNAL SQLSTATE '45000'
+	SET MESSAGE_TEXT = 'Некоректний командир, робітник є командиром
+	іншої бригади!';
+	END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `ROUTE_BEFORE_UPDATE`;
+
+DELIMITER //
+CREATE TRIGGER `ROUTE_BEFORE_UPDATE`
+BEFORE UPDATE ON `route`
+FOR EACH ROW
+BEGIN
+DECLARE tr_type INT;
+    SELECT COUNT(*) INTO tr_type FROM transport
+    WHERE transport.id = NEW.auto AND (transport.category = 'Автобус' OR transport.category = 'Маршрутне таксі');
+    
+    IF tr_type = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Не пасажирський транспорт';
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `ROUTE_BEFORE_INSERT`;
+
+DELIMITER //
+CREATE TRIGGER `ROUTE_BEFORE_INSERT`
+BEFORE INSERT ON `route`
+FOR EACH ROW
+BEGIN
+DECLARE tr_type INT;
+    SELECT COUNT(*) INTO tr_type FROM transport
+    WHERE transport.id = NEW.auto AND (transport.category = 'Автобус' OR transport.category = 'Маршрутне таксі');
+    
+    IF tr_type = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Не пасажирський транспорт';
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `STAFF_BEFORE_INSERT`;
+
+DELIMITER //
+CREATE TRIGGER `STAFF_BEFORE_INSERT`
+BEFORE INSERT ON `staff`
+FOR EACH ROW
+BEGIN
+ IF NEW.`speciality` != 'Слюсар' OR NEW.`speciality` != 'Технік' THEN
+		SET NEW.`start_date` = NULL;
+	END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `STAFF_BEFORE_UPDATE`;
+
+DELIMITER //
+CREATE TRIGGER `STAFF_BEFORE_UPDATE`
+BEFORE UPDATE ON `staff`
+FOR EACH ROW
+BEGIN
+ IF NEW.`speciality` != 'Слюсар' OR NEW.`speciality` != 'Технік' THEN
+		SET NEW.`start_date` = NULL;
+	END IF;
+END//
+DELIMITER ;
+
+
+DROP TRIGGER IF EXISTS `vantaj_BEFORE_INSERT`;
+
+DELIMITER //
+CREATE TRIGGER `vantaj_BEFORE_INSERT`
+BEFORE INSERT ON `vantaj`
+FOR EACH ROW
+BEGIN
+    DECLARE tr_type INT;
+    SELECT COUNT(*) INTO tr_type FROM transport
+    WHERE transport.id = NEW.auto AND transport.category = 'Вантажні' ;
+    
+    IF tr_type = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Не вантажний транспорт';
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `vantaj_BEFORE_UPDATE`;
+
+DELIMITER //
+CREATE TRIGGER `vantaj_BEFORE_UPDATE`
+BEFORE UPDATE ON `vantaj`
+FOR EACH ROW
+BEGIN
+    DECLARE tr_type INT;
+    SELECT COUNT(*) INTO tr_type FROM transport
+    WHERE transport.id = NEW.auto AND transport.category = 'Вантажні' ;
+    
+    IF tr_type = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Не вантажний транспорт';
+    END IF;
+END//
+DELIMITER ;
+DROP TRIGGER IF EXISTS `transport_BEFORE_INSERT2`;
+
+DELIMITER //
+CREATE TRIGGER `transport_BEFORE_INSERT2`
+BEFORE INSERT ON `transport`
+FOR EACH ROW
+BEGIN
+    IF NEW.`category` = 'Вантажні' THEN
+		SET NEW.`capacity` = NULL;
+	ELSEIF NEW.`category` = 'Автобус' OR NEW.`category` = 'Маршрутне таксі' THEN
+		SET NEW.`carry` = NULL;
+	ELSE
+		SET NEW.`capacity` = NULL;
+		SET NEW.`carry` = NULL;
+	END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `transport_BEFORE_INSERT`;
+
+DELIMITER //
+CREATE TRIGGER `transport_BEFORE_INSERT`
+BEFORE INSERT ON `transport`
+FOR EACH ROW
+BEGIN
+   IF NEW.passed = 'списаний' THEN
+        SET NEW.finish_date = CURDATE();
+	else SET NEW.finish_date = null;
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `transport_BEFORE_UPDATE`;
+
+DELIMITER //
+CREATE TRIGGER `transport_BEFORE_UPDATE`
+BEFORE UPDATE ON `transport`
+FOR EACH ROW
+BEGIN
+   IF NEW.passed = 'списаний' THEN
+        SET NEW.finish_date = CURDATE();
+	else SET NEW.finish_date = null;
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `transport_BEFORE_UPDATE2`;
+
+DELIMITER //
+CREATE TRIGGER `transport_BEFORE_UPDATE2`
+BEFORE UPDATE ON `transport`
+FOR EACH ROW
+BEGIN
+    IF NEW.`category` = 'Вантажні' THEN
+		SET NEW.`capacity` = NULL;
+	ELSEIF NEW.`category` = 'Автобус' OR NEW.`category` = 'Маршрутне таксі' THEN
+		SET NEW.`carry` = NULL;
+	ELSE
+		SET NEW.`capacity` = NULL;
+		SET NEW.`carry` = NULL;
+	END IF;
+END//
+DELIMITER ;
